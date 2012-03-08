@@ -1,0 +1,68 @@
+                   -----------------------------------------
+                   GEGL gimp-source and gimp-sink operations
+                            beta 
+                            Mar. 8, 2012 L. Konneker
+                   -----------------------------------------
+
+1. About
+========
+
+These are experimental.  They are GEGL operations (also called nodes, plugins, or modules since they are dynamically loaded libraries.)  They are operations of the sink and source subclass.  They source and sink to a GIMP Drawable.  The Drawable is specified by an ID (an int, not a pointer.)
+
+These are useful in a GIMP Python plugin when used with PyGEGL (import Gegl.)
+
+2. Building
+===========
+
+There is no patch file; you must make small edits to your gegl source and rebuild it.
+
+  1. Put gimp-sink.c and gimp-source.c in gegl/operations/external.
+  2. From gegl-build-mods copy a fragment to gegl/operations/external/Makefile.am
+  3. From gegl-build-mods copy a fragment to gegl/configure.ac
+  4. In the gegl directory: >./configure >make >make install
+
+These are in the GEGL source tree but require GIMP libraries.  But GIMP also requires GEGL libraries.  Thus there is a circular dependency.  The first time you build GEGL, when GIMP is not built yet, it will not build these plugins.  The second time you build GEGL after also building GIMP, it will build these plugins.  This will only affect those who are building a fresh GEGL and GIMP.
+
+PyGEGL is experimental, often not installed; you may need to manually make the PyGEGL bindings (>cd gegl/bindings/pygegl, >./configure >make, >make install)
+
+3. Using in a GIMP Python plugin
+================================
+
+See the example plugin-test-gegl.py
+
+At the time the GEGL pipeline is first process()'d : the source reads from its specified drawable from the GIMP core, and the sink writes the GEGL processing output to the sink's specified drawable in the GIMP core.  Note that a plugin might have its own copy of any drawable (a Drawable Python object, which includes a set of tiles.)  Any copy is not affected by the sink and source.  Flushing any copy after processing the pipeline could overwrite (say with the stale, original, unprocessed data.)
+
+The sink IS destructive of the drawable in the core.  GEGL allows non-destructive editing, in the sense that it manages the destruction in the pipeline.
+
+The drawable of the sink and the drawable of the source may be distinct.  For example, the sink drawable could be a preview image or layer.
+
+Repeated processing (if substantive, i.e. not a no op having the same node properties as prior processing) of the GEGL pipeline having the same sink and source drawable will have a cumulative effect(?).  This is probably not what you want; a GIMP plugin that allows repeated processing of the pipeline should probably sink to a distinct drawable, and return that drawable only when the user is satisfied.
+
+Undo???
+
+4. THIS IS A WORK IN PROGRESS
+=============================
+
+better to pass pointer to drawable instead of ID?
+
+format is fixed at RGBA, integrate gimp_bpp_to_babl_format (guint bpp) from gimp/app/gegl/gegl-utils.c
+
+linear/gamma
+
+Undo
+
+proper handling of rects for some operations working outside the drawable (blur)
+
+memory leaks
+
+rename to gimp-core-source to make it clear that it is sourcing/sinking a drawable from the GIMP core?
+
+signals?
+
+hacks to configure.ac and Makefile.am need work
+
+5. GUI event loop
+=================
+
+PyGEGL supports iterative work via processors.  If you want a GIMP plug-in's GUI event loop to remain responsive to the user while a long-running GEGL pipeline is working, you should use timers, processors and the method processor_work(), instead of just calling process().  See gimp/app/gimpimagemap.c for example.  This is not a concern for most plug-ins since the user expects to wait and can continue to use other other GIMP windows.  
+

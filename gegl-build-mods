@@ -1,0 +1,33 @@
+Hacks for building gimp-source GEGL plugins.
+
+1. Insert the following in gegl/configure.ac
+
+###################
+# Check for GIMP
+###################
+
+PKG_CHECK_MODULES(GIMP, gimp-2.0,
+    have_gimp="yes",
+    have_gimp="no  (gimp library not found)")
+AC_MSG_RESULT($have_gimp)
+AM_CONDITIONAL(HAVE_GIMP, test "x$have_gimp" = "xyes")
+AC_SUBST(GIMP_CFLAGS) 
+AC_SUBST(GIMP_LIBS)
+
+2.  Insert the following in gegl/operations/external/Makefile.am
+
+if HAVE_GIMP
+ops += gimp-source.la
+gimp_source_la_SOURCES = gimp-source.c 
+gimp_source_la_LIBADD  = $(op_libs) $(GIMP_LIBS)
+gimp_source_la_CFLAGS  = $(AM_CFLAGS) $(GIMP_CFLAGS)
+
+ops += gimp-sink.la
+gimp_sink_la_SOURCES = gimp-sink.c 
+gimp_sink_la_LIBADD  = $(op_libs) $(GIMP_LIBS)
+gimp_sink_la_CFLAGS  = $(AM_CFLAGS) $(GIMP_CFLAGS)
+endif
+
+3.  Copy gimp-source.c and gimp-sink.c to gegl/operations/external
+
+4.  Rebuild gegl (./configure, make, make install)
